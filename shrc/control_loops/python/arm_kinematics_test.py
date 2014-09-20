@@ -15,7 +15,7 @@ class TestPosition(unittest.TestCase):
                                        0)
     other = arm_kinematics.Position(
         arm_kinematics.ARM_FRAME.x + 2 * arm_kinematics.ARM_FRAME.y,
-        arm_kinematics.ARM_FRAME.y,
+        arm_kinematics.ARM_FRAME.z,
         0)
     self.assertEqual(original.append(other), other)
 
@@ -63,7 +63,37 @@ class TestPosition(unittest.TestCase):
         0)
     self.assertEqual(original.append(other), result)
 
+  def test_append_straight_with_angle(self):
+    original = arm_kinematics.Position(
+        arm_kinematics.ARM_FRAME.x + 2 * arm_kinematics.ARM_FRAME.y,
+        arm_kinematics.ARM_FRAME.x + arm_kinematics.ARM_FRAME.y,
+        -sympy.pi / 2)
+    other = arm_kinematics.Position(2 * arm_kinematics.ARM_FRAME.y,
+                                    arm_kinematics.ARM_FRAME.y,
+                                    0)
+    result = arm_kinematics.Position(
+        (1 + sympy.sqrt(2)) * arm_kinematics.ARM_FRAME.x +
+        (2 + sympy.sqrt(2)) * arm_kinematics.ARM_FRAME.y,
+        arm_kinematics.ARM_FRAME.x + arm_kinematics.ARM_FRAME.y,
+        -sympy.pi / 2)
+    self.assertEqual(original.append(other), result)
+
+  def test_append_straight_with_useful_angle(self):
+    original = arm_kinematics.Position(
+        arm_kinematics.ARM_FRAME.x + 2 * arm_kinematics.ARM_FRAME.y,
+        arm_kinematics.ARM_FRAME.x + arm_kinematics.ARM_FRAME.y,
+        -sympy.pi / 2)
+    other = arm_kinematics.Position(2 * arm_kinematics.ARM_FRAME.x,
+                                    arm_kinematics.ARM_FRAME.y,
+                                    0)
+    result = arm_kinematics.Position(
+        arm_kinematics.ARM_FRAME.x +
+        2 * arm_kinematics.ARM_FRAME.y +
+        -2 * arm_kinematics.ARM_FRAME.z,
+        arm_kinematics.ARM_FRAME.x + arm_kinematics.ARM_FRAME.y,
+        -sympy.pi / 2)
+
 if __name__ == '__main__':
-  cProfile.run('unittest.main()', sort='cum')
+  #cProfile.run('unittest.main()', sort='cum')
   #cProfile.run('unittest.main()', sort='time')
-  #unittest.main()
+  unittest.main()

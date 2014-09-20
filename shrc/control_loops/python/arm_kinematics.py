@@ -7,59 +7,14 @@ from sympy.simplify.sqrtdenest import sqrt_depth
 
 import util
 
-class ArmKinematics(object):
-  """Represents the physical characteristics of the arm.
-
-  This includes centers of mass, locations, etc for each segment and the motor
-  constant for each one.
-
-  This class also provides methods for calculating various relationships between
-  the components (moment of inertia given the position of later segments etc).
-
-  Terminology Notes:
-    base: The part which anchors the arm.
-    segment: A single rigid section which attaches with a motorized connection
-             at one ends to the base, other segments, and/or the claw.
-             The base end is closer to the base and the claw end is farther
-             away from it. The rotation at the base end is considered part of
-             the segment, but the rotation (if any) at the other end is
-             considered part of the next segment.
-    joint angles: A joint is at 0 when it is "straight".
-    coordinates: Positive Z is up, positive Y is forwards with everything at 0,
-                 and positive X is to the right.
-
-  Attributes:
-    segments: A sequence of Segments, in order from base to claw.
-  """
-
-  def __init__(self, segments):
-    self.__segments = tuple(segments)
-
-  @property
-  def segments(self):
-    return self.__segments
-
-  def end_position(self, angles):
-    """Calculates the position at the end of the Nth segment.
-
-    Args:
-      angles: A sequence of angles to use for each joint. The size of this
-              sequence determines how many joints the position is calculated
-              through.
-
-    Returns a Position representing the end of the len(angles)th segment.
-    """
-    r = Position(vector.Vector(0), ARM_FRAME)
-    for segment in zip(self.segments, angles):
-      r = r.append(segment[0].position(segment[1]))
-    return r
-
 ARM_FRAME = vector.ReferenceFrame('N')
 
 class Position(object):
   """Represents a position of a segment in the arm.
 
-  A position is represented as a vector.Vector and a vector.ReferenceFrame.
+  A position is represented as a vector.Vector for the position, another (unit)
+  vector.Vector for the direction the end is facing, and an angle the end is
+  rotated about that direction.
   The reference frames goes at the end of the vector, and the actual "line"
   (ie tube) of the segment points down its Y axis.
 
@@ -67,8 +22,8 @@ class Position(object):
     vector: The vector.Vector in ARM_FRAME.
     direction: A unit vector.Vector in ARM_FRAME which represents the angle the
                end of the vector is pointing.
-    angle: The amount clockwise (looking down direction) the end of the vector
-           is turned.
+    angle: The amount counter-clockwise (looking down direction) the end of the
+           vector is turned.
   """
 
   """direction does not have to be normalized."""
@@ -126,10 +81,12 @@ class Position(object):
     if self.direction == rotated_frame.y:
       my_frame = rotated_frame
     else:
+      # Create a new frame whose Y axis == self.direction.
       my_frame_rotate = self.direction.cross(rotated_frame.y)
-      angle = sympy.acos(self.direction.dot(rotated_frame.y))
+      angle = -sympy.acos(self.direction.dot(rotated_frame.y))
       my_frame = rotated_frame.orientnew('Na', 'Axis', [angle, my_frame_rotate])
-    my_dcm = my_frame.dcm(ARM_FRAME)
+    assert(self.direction == my_frame.y)
+    my_dcm = ARM_FRAME.dcm(my_frame)
     rotated_vector = util.sequence_to_vector(
         ARM_FRAME,
         my_dcm * other.vector.to_matrix(ARM_FRAME))
@@ -185,3 +142,50 @@ class TwistSegment(Segment):
   def position(self, theta):
     return Position(ARM_FRAME.y * self.length,
                     ARM_FRAME.orientnew('Nt', 'Axis', [theta, ARM_FRAME.y]))
+
+class ArmKinematics(object):
+  """Represents the physical characteristics of the arm.
+
+  This includes centers of mass, locations, etc for each segment and the motor
+  constant for each one.
+
+  This class also provides methods for calculating various relationships between
+  the components (moment of inertia given the position of later segments etc).
+
+  Terminology Notes:
+    base: The part which anchors the arm.
+    segment: A single rigid section which attaches with a motorized connection
+             at one ends to the base, other segments, and/or the claw.
+             The base end is closer to the base and the claw end is farther
+             away from it. The rotation at the base end is considered part of
+             the segment, but the rotation (if any) at the other end is
+             considered part of the next segment.
+    joint angles: A joint is at 0 when it is "straight".
+    coordinates: Positive Z is up, positive Y is forwards with everything at 0,
+                 and positive X is to the right.
+
+  Attributes:
+    segments: A sequence of Segments, in order from base to claw.
+  """
+
+  def __init__(self, segments):
+    self.__segments = tuple(segments)
+
+  @property
+  def segments(self):
+    return self.__segments
+
+  def end_position(self, angles):
+    """Calculates the position at the end of the Nth segment.
+
+    Args:
+      angles: A sequence of angles to use for each joint. The size of this
+              sequence determines how many joints the position is calculated
+              through.
+
+    Returns a Position representing the end of the len(angles)th segment.
+    """
+    r = Position(vector.Vector(0), ARM_FRAME)
+    for segment in zip(self.segments, angles):
+      r = r.append(segment[0].position(segment[1]))
+    return r
